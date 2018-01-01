@@ -30,7 +30,28 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
+  for i in xrange(num_train):
+    pro = np.dot(X[i], W)
+    pro -= np.max( pro)
+
+    pro = np.exp(pro)
+
+    pro /= np.sum(pro)
+
+    loss += -np.log(pro[y[i]])
+
+    one_hot = np.zeros(num_classes)
+    one_hot[y[i]] = 1
+    error = pro - one_hot
+    dW += np.outer( X[i], error)
+
+  loss /= num_train
+  loss +=  0.5 * reg *  np.sum(W*W)
+  dW /= num_train
+
+  dW += reg * W
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
@@ -54,7 +75,25 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  pro = np.dot(X,W)
+  pro -= np.max(pro, axis = 1 ).reshape(-1, 1)
+
+  pro = np.exp(pro)
+  pro /= np.sum(pro, axis= 1 ).reshape(-1,1)
+
+  true_y = np.zeros([X.shape[0], W.shape[1]])
+  true_y[range(X.shape[0]), y] = 1
+  loss =  np.multiply(np.log(pro), true_y) 
+
+  loss = - np.sum( loss )/X.shape[0]
+  loss += 0.5 * reg * np.sum(W*W)
+
+  error = pro - true_y
+
+  dW = np.dot( X.T, error )
+
+  dW /=X.shape[0]
+  dW += reg * W
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################

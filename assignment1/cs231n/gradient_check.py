@@ -104,6 +104,7 @@ def eval_numerical_gradient_net(net, inputs, output, h=1e-5):
               inputs, output, h=h)
 
 
+#x是权重矩阵
 def grad_check_sparse(f, x, analytic_grad, num_checks=10, h=1e-5):
   """
   sample a few random elements and only return numerical
@@ -111,7 +112,8 @@ def grad_check_sparse(f, x, analytic_grad, num_checks=10, h=1e-5):
   """
 
   for i in xrange(num_checks):
-    ix = tuple([randrange(m) for m in x.shape])
+    ix = tuple([randrange(m) for m in x.shape]) #随机生成一个坐标，用来索引x中的元素
+    print (ix, x[ix])
 
     oldval = x[ix]
     x[ix] = oldval + h # increment by h
