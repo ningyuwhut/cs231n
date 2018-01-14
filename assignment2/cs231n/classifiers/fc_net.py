@@ -1,3 +1,4 @@
+#encoding=utf-8
 from builtins import range
 from builtins import object
 import numpy as np
@@ -54,10 +55,6 @@ class TwoLayerNet(object):
         self.params['b1'] = np.zeros(hidden_dim)
         self.params['W2'] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dim, num_classes))
         self.params['b2'] = np.zeros(num_classes)
-
-
-
-
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -195,19 +192,25 @@ class FullyConnectedNet(object):
             if i==1: 
                 self.params['W'+str(i)] = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dims[i-1]))
                 self.params['b'+str(i)] = np.zeros(hidden_dims[i-1])
+                if self.use_batchnorm:
+                    self.params['gamma'+str(i)]=np.ones(hidden_dims[i-1]) #缩放
+                    self.params['beta'+str(i)]=np.zeros(hidden_dims[i-1]) #平移
+
             elif i != self.num_layers:
                 self.params['W'+str(i)] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[i-2], hidden_dims[i-1]))
                 self.params['b'+str(i)] = np.zeros(hidden_dims[i-1])
-            else:
+
+                if self.use_batchnorm:
+                    self.params['gamma'+str(i)]=np.ones(hidden_dims[i-1]) #缩放
+                    self.params['beta'+str(i)]=np.zeros(hidden_dims[i-1]) #平移
+            else: #输出层
                 self.params['W'+str(i)] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[i-2], num_classes))
                 self.params['b'+str(i)] = np.zeros(num_classes)
-
-        #初始化bn的参数
-
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
 
+#这里的实现是所有的dropout层的参数都一样
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
         # (train / test). You can pass the same dropout_param to each dropout layer.
@@ -266,10 +269,20 @@ class FullyConnectedNet(object):
 #        scores, cache2 = affine_forward( out1, self.params['W2'], self.params['b2'])
         out_list =[X]
         cache_list =[]
+        dropout_cache = []
         for i in range(1,  self.num_layers+1):
-            if i != self.num_layers :
-                out, cache = affine_relu_forward(  out_list[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
-            else:
+            if i != self.num_layers : #各个隐层
+                if self.use_batchnorm:
+                    out, cache = affine_bn_relu_forward( out_list[i-1], self.params['W'+str(i)], self.params['b'+str(i)],self.params['gamma'+str(i)], self.params['beta'+str(i)] , self.bn_params[i-1])
+                else:
+                    out, cache = affine_relu_forward(  out_list[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
+
+#使用dropout
+                if self.use_dropout:
+                    out, d_cache = dropout_forward( out, self.dropout_param )
+                    dropout_cache.append(d_cache)
+
+            else: #输出层
                 out, cache = affine_forward( out_list[-1], self.params['W'+str(i) ] , self.params['b' +str(i)])
                 
             out_list.append(out)
@@ -306,20 +319,17 @@ class FullyConnectedNet(object):
             if i == self.num_layers: #输出层
                 dout, grads['W'+str(i)], grads['b'+str(i)] = affine_backward(dscores, cache_list[i-1])
             else:
-                dout, grads['W'+str(i)], grads['b'+str(i)] = affine_relu_backward(dout , cache_list[i-1] )
-#            dout_list.append(dout)
-            #dout_list[self.num_layers-1-i-1]
+                if self.use_dropout:
+                    dout = dropout_backward(dout, dropout_cache[i-1])
+                if self.use_batchnorm:
+                    dout, grads['W'+str(i)], grads['b'+str(i)], grads['gamma'+str(i)], grads['beta'+str(i)] = affine_bn_relu_backward(dout , cache_list[i-1] )
+                else:
+                    dout, grads['W'+str(i)], grads['b'+str(i)] = affine_relu_backward(dout , cache_list[i-1] )
 
             #增加正则项
             grads['W'+str(i)] += self.reg * self.params['W'+str(i)]
 
             loss += 0.5 * self.reg * np.sum( self.params['W'+str(i)] * self.params['W'+str(i)] )
-#        print( grads.keys())
-         
-#        dout1, grads['W2'], grads['b2'] = affine_backward(dscores, cache2)
-#        _, grads['W1'], grads['b1'] = affine_relu_backward( dout1, cache1 )
-#        grads['W2'] += self.reg * self.params['W2']
-#        grads['W1'] += self.reg * self.params['W1']
 
         ############################################################################
         #                             END OF YOUR CODE                             #
